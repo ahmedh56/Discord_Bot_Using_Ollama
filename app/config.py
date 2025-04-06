@@ -23,7 +23,7 @@ logout_command = "!logout"
 logout_message = "Logging Out..."
 
 # System prompt sent to the Ollama model to define its behavior
-system_prompt = "You are a helpful assistant."
+system_prompt = "You are a helpful assistant that answers in concise responses under 200 characters. You have the personality of a great philosopher and like to make you answers profound."
 
 # The name of the model used by the Ollama API
-model = "dolphin-mistral:latest"
+model = "llama3.2:latest"

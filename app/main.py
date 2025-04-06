@@ -1,5 +1,5 @@
 import discord
-import requests
+import aiohttp
 import re
 from config import settings, logout_command, logout_message, system_prompt, model
 
@@ -22,40 +22,43 @@ class MyClient(discord.Client):
             await self.close()
 
         if self.user in message.mentions and message.channel.id == specific_channel_id:
-            # Store the message content
             message_content = message.content
 
-            # Send the message content to Ollama
             try:
-                response = requests.post(
-                    f"http://{settings.API_IP}:{settings.API_PORT}/api/chat",
-                    json={
-                        "model": model,  # Replace with the model name you're using in Ollama
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": system_prompt,
-                            },
-                            {"role": "user", "content": message_content},
-                        ],
-                        "stream": False,
-                    },
-                )
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"http://{settings.API_IP}:{settings.API_PORT}/api/generate",
+                        json={
+                            "model": model,
+                            "system": system_prompt,
+                            "prompt": message_content,
+                            "stream": False,
+                        },
+                        # {
+                        #     "model": model,
+                        #     "messages": [
+                        #         {"role": "system", "content": system_prompt},
+                        #         {"role": "user", "content": message_content},
+                        #     ],
+                        #     "stream": False,
+                        # }
+                    ) as response:
 
-                print(response.json())
-                response.raise_for_status()  # Raise an error for HTTP issues
-                model_reply = response.json()["message"]["content"]
-                # use if model has a <think> tag in the response
-                model_reply = re.sub(
-                    r"<think>.*?</think>", "", model_reply, flags=re.DOTALL
-                ).strip()
+                        response.raise_for_status()  # Raise exception for HTTP errors
+                        response_json = await response.json()
+                        print(response_json)
 
-                # Send the model's reply back to the Discord channel
-                await message.channel.send(f"{model_reply}")
-            except requests.exceptions.RequestException as e:
-                # Handle errors (e.g., Ollama not running or API issues)
+                        model_reply = response_json["response"]
+                        model_reply = re.sub(
+                            r"<think>.*?</think>", "", model_reply, flags=re.DOTALL
+                        ).strip()
+
+                        await message.channel.send(model_reply)
+
+            except aiohttp.ClientError as e:
                 await message.channel.send(
-                    f"Sorry {message.author.mention}, I couldn't process your request. Error: {e}"
+                    print(f"error: {e}"),
+                    f"Sorry {message.author.mention}, I couldn't process your request.",
                 )
 
 
